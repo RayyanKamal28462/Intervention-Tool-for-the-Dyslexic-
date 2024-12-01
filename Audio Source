@@ -1,0 +1,23 @@
+using UnityEngine;
+
+public class AudioController : MonoBehaviour
+{
+    private AudioSource audioSource;
+
+    void Start()
+    {
+        // Change "Audio" to "AudioSource"
+        audioSource = GetComponent<AudioSource>();
+    }
+
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            if (!audioSource.isPlaying)
+            {
+                audioSource.Play();
+            }
+        }
+    }
+}

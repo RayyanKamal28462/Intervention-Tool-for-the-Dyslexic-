@@ -1,0 +1,370 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+public class GameManager : MonoBehaviour
+{
+    [Header("Pengaturan Halaman Menu")]
+    public string Halaman_Menu;
+    public string Halaman_LevelSelection;
+    public string[] Halaman_Permainan_Level1;
+    public string[] Halaman_Permainan_Level2;
+    public string Halaman_Hasil;
+    private int currentSceneIndex = 0;
+
+    public static GameManager Instance { get; private set; }
+
+    [Header("Gameplay Level 1")]
+    public string word;
+    public int bobot;
+    public string[] scenesToShuffleLevel1;
+
+    [Header("Gameplay Level 2")]
+    public string correctWord;
+    public string[] wordChoices;
+    public string[] scenesToShuffleLevel2;
+
+    public AudioClip wrongSound;
+    public AudioClip correctSound;
+    public AudioSource sound;
+    public GameObject answerGroup;
+    public GameObject buttonGroup;
+    public GameObject answerPrefab;
+    public GameObject buttonPrefab;
+    public GameObject wordButtonPrefab;
+    public GameObject correctAnswerPrefab;
+
+    int step;
+    int nilai;
+
+    public Text text_score;
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    void Start()
+    {
+        // Load the score from PlayerPrefs at the start of the game or when a new scene is loaded
+        nilai = PlayerPrefs.GetInt("nilai", 0);
+        if (text_score != null)
+        {
+            text_score.text = nilai.ToString();
+        }
+
+        if (SceneManager.GetActiveScene().name == Halaman_Menu)
+        {
+            // Initialize level data
+            for (int i = 0; i < Halaman_Permainan_Level1.Length; i++)
+            {
+                PlayerPrefs.SetString("halaman_permainan_level1_" + i, Halaman_Permainan_Level1[i]);
+            }
+            for (int i = 0; i < Halaman_Permainan_Level2.Length; i++)
+            {
+                PlayerPrefs.SetString("halaman_permainan_level2_" + i, Halaman_Permainan_Level2[i]);
+            }
+            PlayerPrefs.SetInt("total_halaman_permainan_level1", Halaman_Permainan_Level1.Length);
+            PlayerPrefs.SetInt("total_halaman_permainan_level2", Halaman_Permainan_Level2.Length);
+            PlayerPrefs.SetString("halaman_hasil", Halaman_Hasil);
+        }
+        else if (SceneManager.GetActiveScene().name == Halaman_Hasil)
+        {
+            DisplayScore();
+        }
+
+        LoadLevelScene();
+    }
+
+    void LoadLevelScene()
+    {
+        for (int i = 0; i < PlayerPrefs.GetInt("total_halaman_permainan_level1"); i++)
+        {
+            if (SceneManager.GetActiveScene().name == PlayerPrefs.GetString("halaman_permainan_level1_" + i))
+            {
+                GenerateAllLevel1();
+                currentSceneIndex = i; // Update current scene index
+                return;
+            }
+        }
+
+        for (int i = 0; i < PlayerPrefs.GetInt("total_halaman_permainan_level2"); i++)
+        {
+            if (SceneManager.GetActiveScene().name == PlayerPrefs.GetString("halaman_permainan_level2_" + i))
+            {
+                GenerateAllLevel2();
+                currentSceneIndex = i; // Update current scene index
+                return;
+            }
+        }
+    }
+
+    public void StartLevel1()
+    {
+        currentSceneIndex = 0;
+        SceneManager.LoadScene(Halaman_Permainan_Level1[currentSceneIndex]);
+    }
+
+    public void StartLevel2()
+    {
+        currentSceneIndex = 0;
+        SceneManager.LoadScene(Halaman_Permainan_Level2[currentSceneIndex]);
+    }
+
+    void GenerateAllLevel1()
+    {
+        step = 0;
+        for (int i = 0; i < word.Length; i++)
+        {
+            GenerateAnswerSlot(i);
+            GenerateAnswerButton(i);
+        }
+        RandomizeButtonPositions();
+    }
+
+    void GenerateAllLevel2()
+    {
+        foreach (string choice in wordChoices)
+        {
+            GenerateWordButton(choice);
+        }
+        GenerateCorrectAnswerSlots();
+    }
+
+    void GenerateAnswerSlot(int i)
+    {
+        var answerSlot = Instantiate(answerPrefab, answerGroup.transform.position, answerGroup.transform.rotation);
+        answerSlot.transform.SetParent(answerGroup.transform);
+        answerSlot.name = word.Substring(i, 1).ToUpper();
+    }
+
+    void GenerateAnswerButton(int i)
+    {
+        var answerButton = Instantiate(buttonPrefab, buttonGroup.transform.position, buttonGroup.transform.rotation);
+        answerButton.transform.SetParent(buttonGroup.transform);
+        answerButton.transform.GetChild(0).GetComponent<Text>().text = word.Substring(i, 1).ToUpper();
+        answerButton.name = word.Substring(i, 1).ToUpper();
+        answerButton.GetComponent<Button>().onClick.AddListener(delegate { AnswerButtonOnClick(answerButton); });
+    }
+
+    void GenerateWordButton(string choice)
+    {
+        var wordButton = Instantiate(wordButtonPrefab, buttonGroup.transform.position, buttonGroup.transform.rotation);
+        wordButton.transform.SetParent(buttonGroup.transform);
+        wordButton.transform.GetChild(0).GetComponent<Text>().text = choice;
+        wordButton.name = choice;
+        wordButton.GetComponent<Button>().onClick.AddListener(delegate { WordButtonOnClick(wordButton); });
+    }
+
+    void GenerateCorrectAnswerSlots()
+    {
+        var correctSlot = Instantiate(correctAnswerPrefab, answerGroup.transform.position, answerGroup.transform.rotation);
+        correctSlot.transform.SetParent(answerGroup.transform);
+        correctSlot.name = correctWord.ToUpper();
+    }
+
+    void AnswerButtonOnClick(GameObject btn)
+    {
+        string text = btn.transform.GetChild(0).GetComponent<Text>().text;
+        btn.SetActive(false);
+        SaveUserAnswerToAnswerGroup(text);
+        CheckUserAnswerLevel1();
+    }
+
+    void WordButtonOnClick(GameObject btn)
+    {
+        string selectedWord = btn.transform.GetChild(0).GetComponent<Text>().text;
+        CheckUserAnswerLevel2(selectedWord);
+    }
+
+    void SaveUserAnswerToAnswerGroup(string text)
+    {
+        GameObject child = answerGroup.transform.GetChild(step).gameObject;
+        Text childText = child.transform.GetChild(0).GetComponent<Text>();
+        childText.text = text;
+        step++;
+    }
+
+    void CheckUserAnswerLevel1()
+    {
+        if (step == word.Length)
+        {
+            if (GetUserAnswer() == word.ToUpper())
+            {
+                Debug.Log("Correct Answer");
+                sound.clip = correctSound;
+                sound.Play();
+                TambahNilai();
+                StartCoroutine(WaitAndLoadNextScene());
+            }
+            else
+            {
+                Debug.Log("Wrong Answer");
+                sound.clip = wrongSound;
+                sound.Play();
+                StartCoroutine(WaitAndReloadScene());
+            }
+        }
+    }
+
+    void CheckUserAnswerLevel2(string selectedWord)
+    {
+        if (selectedWord == correctWord)
+        {
+            Debug.Log("Correct Answer");
+            sound.clip = correctSound;
+            sound.Play();
+            ShowCorrectAnswer();
+            TambahNilai();
+            StartCoroutine(WaitAndLoadNextScene());
+        }
+        else
+        {
+            Debug.Log("Wrong Answer");
+            sound.clip = wrongSound;
+            sound.Play();
+            StartCoroutine(WaitAndReloadScene());
+        }
+    }
+
+    void ShowCorrectAnswer()
+    {
+        GameObject child = answerGroup.transform.GetChild(0).gameObject;
+        Text childText = child.transform.GetChild(0).GetComponent<Text>();
+        childText.text = correctWord.ToUpper();
+    }
+
+    void TambahNilai()
+    {
+        nilai = nilai + bobot;
+        PlayerPrefs.SetInt("nilai", nilai); // Save the score to PlayerPrefs
+        if (text_score != null)
+        {
+            text_score.text = nilai.ToString(); // Update the text_score Text component
+        }
+    }
+
+    void DisplayScore()
+    {
+        if (text_score != null)
+        {
+            text_score.text = PlayerPrefs.GetInt("nilai", 0).ToString(); // Load the score from PlayerPrefs
+        }
+    }
+
+    IEnumerator WaitAndLoadNextScene()
+    {
+        yield return new WaitForSeconds(1.5f);
+        LoadNextScene();
+    }
+
+    IEnumerator WaitAndReloadScene()
+    {
+        yield return new WaitForSeconds(1f);
+        ReloadScene();
+    }
+
+    void LoadNextScene()
+    {
+        currentSceneIndex++;
+        if (SceneManager.GetActiveScene().name.Contains("level1"))
+        {
+            if (currentSceneIndex < Halaman_Permainan_Level1.Length)
+            {
+                SceneManager.LoadScene(Halaman_Permainan_Level1[currentSceneIndex]);
+            }
+            else
+            {
+                SceneManager.LoadScene(Halaman_Permainan_Level2[0]); // Transition to the first scene of Level 2
+            }
+        }
+        else if (SceneManager.GetActiveScene().name.Contains("level2"))
+        {
+            if (currentSceneIndex < Halaman_Permainan_Level2.Length)
+            {
+                SceneManager.LoadScene(Halaman_Permainan_Level2[currentSceneIndex]);
+            }
+            else
+            {
+                SceneManager.LoadScene(Halaman_Hasil);
+            }
+        }
+    }
+
+    void ReloadScene()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    string GetUserAnswer()
+    {
+        string userAnswer = "";
+        foreach (Transform child in answerGroup.transform)
+        {
+            Text childText = child.transform.GetChild(0).GetComponent<Text>();
+            userAnswer += childText.text;
+        }
+        return userAnswer;
+    }
+
+    void RandomizeButtonPositions()
+    {
+        List<int> indexes = new List<int>();
+        List<int> values = new List<int>();
+
+        for (int i = 0; i < word.Length; ++i)
+        {
+            indexes.Add(i);
+        }
+
+        for (int i = 0; i < word.Length; ++i)
+        {
+            int index = Random.Range(0, indexes.Count);
+            values.Add(indexes[index]);
+            indexes.RemoveAt(index);
+        }
+
+        foreach (Transform child in buttonGroup.transform)
+        {
+            int index = values[0];
+            child.SetSiblingIndex(index);
+            values.RemoveAt(0);
+        }
+    }
+
+    public void ResetScore()
+    {
+        PlayerPrefs.SetInt("nilai", 0); // Save 0 to PlayerPrefs
+        nilai = 0; // Reset the local score variable
+        if (text_score != null)
+        {
+            text_score.text = nilai.ToString(); // Display the reset score
+        }
+    }
+
+    public void OnSelesaiButtonClick()
+    {
+        ResetScore();
+        SceneManager.LoadScene("MainPage 1");
+    }
+
+    void ShuffleScenes(ref string[] scenes)
+    {
+        for (int i = scenes.Length - 1; i > 0; i--)
+        {
+            int randomIndex = Random.Range(0, i + 1);
+            string temp = scenes[i];
+            scenes[i] = scenes[randomIndex];
+            scenes[randomIndex] = temp;
+        }
+    }
+}

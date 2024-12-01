@@ -1,0 +1,37 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class CharacterAnim : MonoBehaviour
+{
+    private Animator anim;
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        anim = GetComponent<Animator>();
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        // Check if the left or right arrow keys are pressed
+        if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.RightArrow))
+        {
+            // Set the "isRunning" parameter in the animator to true
+            anim.SetBool("isRunning", true);
+        }
+        else
+        {
+            // Set the "isRunning" parameter in the animator to false
+            anim.SetBool("isRunning", false);
+        }
+
+        // Check if the space key is pressed
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            // Set the "isJumping" trigger in the animator
+            anim.SetTrigger("isJumping");
+        }
+    }
+}

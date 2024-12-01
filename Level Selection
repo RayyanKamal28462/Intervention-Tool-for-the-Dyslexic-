@@ -1,0 +1,25 @@
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+public class LevelSelection : MonoBehaviour
+{
+    public Button level1Button;
+    public Button level2Button;
+
+    private void Start()
+    {
+        level1Button.onClick.AddListener(OnLevel1ButtonClick);
+        level2Button.onClick.AddListener(OnLevel2ButtonClick);
+    }
+
+    void OnLevel1ButtonClick()
+    {
+        GameManager.Instance.StartLevel1();
+    }
+
+    void OnLevel2ButtonClick()
+    {
+        GameManager.Instance.StartLevel2();
+    }
+}

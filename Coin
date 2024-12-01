@@ -1,0 +1,29 @@
+using UnityEngine;
+
+public class Coin : MonoBehaviour
+{   
+    
+    public AudioClip correctSound;
+    public AudioSource audioSource;
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.CompareTag("Player"))
+        { 
+            Debug.Log("Correct answer chosen.");
+            audioSource.clip = correctSound;
+            Debug.Log("Correct sound clip set: " + correctSound.name);
+            audioSource.Play();
+            // Increment the number of coins
+            PlayerManager.numberOfCoins++;
+            // Deactivate the coin GameObject
+            gameObject.SetActive(false);
+        }
+    }
+
+    // Method to reset the coin state
+    public void ResetCoinState()
+    {
+        // Activate the coin GameObject
+        gameObject.SetActive(true);
+    }
+}

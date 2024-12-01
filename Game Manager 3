@@ -1,0 +1,182 @@
+using System.Collections; // Add this line to include the necessary namespace for IEnumerator
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+public class GameManager3 : MonoBehaviour
+{
+    [Header("Gameplay")]
+    public string[] correctAnswers;
+    public string[] scenesToShuffle;
+    public AudioClip correctSound;    public AudioClip wrongSound;    
+
+    public AudioClip startSound; // Add AudioClip for start button click sound
+    public AudioSource audioSource;
+
+    public Text appleText;
+    private int scoreApple = 0;
+    private int correctCount = 0;
+
+    // Singleton instance of the GameManager
+    public static GameManager3 Instance { get; private set; }
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    private void Start()
+    {
+        // Load the latest score when the GameManager starts
+        LoadScore();
+        // Display the loaded score
+        DisplayScore();
+    }
+
+    public void Jawaban_User(string answer)
+{
+    int currentQuestionIndex = correctCount;
+    if (answer == correctAnswers[currentQuestionIndex])
+    {
+        CorrectAnswer();
+        if (correctCount == correctAnswers.Length)
+        {
+            StartCoroutine(LoadNextScene());
+        }
+    }
+    else
+    {
+        // Play wrong sound when the answer is incorrect
+        if (audioSource != null && wrongSound != null)
+        {
+            audioSource.PlayOneShot(wrongSound);
+        }
+        else
+        {
+            Debug.LogWarning("AudioSource or AudioClip for wrong answer sound is not assigned.");
+        }
+    }
+}
+
+
+    public void CorrectAnswer()
+    {
+        Debug.Log("Correct answer chosen.");
+        audioSource.clip = correctSound;
+        Debug.Log("Correct sound clip set: " + correctSound.name);
+        audioSource.Play();
+        Debug.Log("Correct sound played.");
+        IncrementAppleScore();
+        correctCount++;
+        SaveScore();
+    }
+
+    IEnumerator LoadNextScene()
+    {
+        yield return new WaitForSeconds(2f);
+        ShuffleAndLoadNextScene();
+    }
+
+    void ShuffleAndLoadNextScene()
+    {
+        // Shuffle scenes
+        for (int i = 0; i < scenesToShuffle.Length; i++)
+        {
+            string temp = scenesToShuffle[i];
+            int randomIndex = Random.Range(i, scenesToShuffle.Length);
+            scenesToShuffle[i] = scenesToShuffle[randomIndex];
+            scenesToShuffle[randomIndex] = temp;
+        }
+
+        // Load next scene
+        for (int i = 0; i < scenesToShuffle.Length; i++)
+        {
+            if (scenesToShuffle[i] != SceneManager.GetActiveScene().name)
+            {
+                SceneManager.LoadScene(scenesToShuffle[i]);
+                return;
+            }
+        }
+
+        // Load the menu scene if all scenes have been visited
+        SceneManager.LoadScene(0);
+    }
+
+    void IncrementAppleScore()
+    {
+        scoreApple++;
+    }
+
+    // Save the score using PlayerPrefs
+    void SaveScore()
+    {
+        PlayerPrefs.SetInt("AppleScore", scoreApple);
+    }
+
+    // Load the score from PlayerPrefs
+    void LoadScore()
+    {
+        scoreApple = PlayerPrefs.GetInt("AppleScore", 0);
+    }
+
+    // Display the score
+    void DisplayScore()
+    {
+        if (appleText != null)
+        {
+            appleText.text = scoreApple.ToString();
+        }
+    }
+
+    public int GetScore()
+    {
+        return scoreApple;
+    }
+
+    public void ResetScore()
+    {
+        scoreApple = 0;
+        correctCount = 0; // Reset correct count
+        SaveScore();
+        DisplayScore();
+    }
+
+    public void OnSelesaiButtonClick()
+    {
+        // Reset the score when the "Selesai" button is clicked
+        ResetScore();
+        SceneManager.LoadScene("MainPage 1");
+    }
+
+    public void OnStartButtonClick()
+{
+    // Play sound effect for start button click
+    if (audioSource != null && startSound != null)
+    {
+        audioSource.PlayOneShot(startSound);
+    }
+    else
+    {
+        Debug.LogWarning("AudioSource or AudioClip for start button click sound is not assigned.");
+    }
+
+    // Start a coroutine to wait for 1.5 seconds before loading the next shuffled scene
+    StartCoroutine(DelayedLoadNextScene(1.5f));
+}
+
+private IEnumerator DelayedLoadNextScene(float delay)
+{
+    yield return new WaitForSeconds(delay);
+    
+    // Reset score and shuffle scenes
+    ShuffleAndLoadNextScene();
+}
+
+}

@@ -1,0 +1,80 @@
+using UnityEngine;
+using UnityEngine.UI;
+using Cinemachine;
+using UnityEngine.SceneManagement;
+
+public class PlayerManager : MonoBehaviour
+{
+    public static Vector2 lastCheckPointPos = new Vector2(-6f, -0.61f);
+    public static int numberOfCoins;
+    public static bool lastCheckpointReached = false;
+    public Text coinsText;
+    public CinemachineVirtualCamera VCam;
+    public GameObject[] playerPrefabs;
+    int characterIndex;
+
+    private GameObject player;
+
+    private void Awake()
+    {
+        // Instantiate player and set camera follow
+        characterIndex = PlayerPrefs.GetInt("SelectedCharacter", 0);
+        GameObject instantiatedPlayer = Instantiate(playerPrefabs[characterIndex], lastCheckPointPos, Quaternion.identity);
+        VCam.m_Follow = instantiatedPlayer.transform;
+        // Find the player object in the scene
+        player = GameObject.FindGameObjectWithTag("Player");
+        // Reset coin state
+        ResetCoinState();
+    }
+
+    private void Update()
+    {
+        if (coinsText != null)
+        {
+            coinsText.text = numberOfCoins.ToString();
+            // Save the number of coins to PlayerPrefs
+            PlayerPrefs.SetInt("NumberOfCoins", numberOfCoins);
+        }
+    }
+
+    public static void MovePlayerToLastCheckpoint()
+    {
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player != null)
+        {
+            player.transform.position = lastCheckPointPos;
+            lastCheckpointReached = true;
+        }
+    }
+
+    public static void ResetGameState()
+    {
+        // Reset coins and move player to last checkpoint
+        numberOfCoins = 0;
+        PlayerPrefs.SetInt("NumberOfCoins", numberOfCoins);
+        MovePlayerToLastCheckpoint();
+        // Reset the state of all coins in the scene
+        Coin[] coins = FindObjectsOfType<Coin>();
+        foreach (Coin coin in coins)
+        {
+            coin.ResetCoinState();
+        }
+    }
+
+    public void OnSelesaiButtonClick()
+    {
+        // Reset game state and load Skor scene
+        ResetGameState();
+        SceneManager.LoadScene("MainPage 1");
+    }
+
+    private void ResetCoinState()
+    {
+        // Reset the state of all coins in the scene
+        Coin[] coins = FindObjectsOfType<Coin>();
+        foreach (Coin coin in coins)
+        {
+            coin.ResetCoinState();
+        }
+    }
+}

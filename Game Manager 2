@@ -1,0 +1,176 @@
+using System.Collections;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+public class GameManager2 : MonoBehaviour
+{
+    [Header("Gameplay")]
+    public string[] correctAnswers;
+    public string[] scenesToShuffle;
+    public AudioClip correctSound;    public AudioClip wrongSound;    
+
+    public AudioSource audioSource;
+
+    public Text loliText; // Renamed from Text to loliText
+    private int Scoreloli = 0;
+    private int correctCount = 0;
+    private int shuffleCount = 0; // Variable to keep track of shuffle count
+
+
+    // Singleton instance of the GameManager
+    public static GameManager2 Instance { get; private set; }
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    private void Start()
+    {
+        // Load the latest score when the GameManager starts
+        LoadScore();
+        // Display the loaded score
+        DisplayScore();
+    }
+
+   public void Jawaban_User(string answer)
+{
+    int currentQuestionIndex = correctCount; // Assuming correctCount is the index of the current question
+    
+    // Check if the answer is correct
+    if (answer == correctAnswers[currentQuestionIndex])
+    {
+        CorrectAnswer(); // Call a method to handle correct answer (you need to define this method)
+        
+        // Check if all answers are correct and load next scene if so
+        if (correctCount == correctAnswers.Length)
+        {
+            StartCoroutine(LoadNextScene()); // Call a method to load the next scene
+        }
+    }
+    else
+    {
+        // Play wrong sound when the answer is incorrect
+        if (audioSource != null && wrongSound != null)
+        {
+            audioSource.PlayOneShot(wrongSound);
+        }
+        else
+        {
+            Debug.LogWarning("AudioSource or AudioClip for wrong answer sound is not assigned.");
+        }
+    }
+}
+
+
+
+    public void CorrectAnswer()
+    {
+        audioSource.clip = correctSound;
+        audioSource.Play();
+        IncrementScore();
+        correctCount++;
+        SaveScore();
+    }
+
+   
+    IEnumerator LoadNextScene()
+    {
+        yield return new WaitForSeconds(2f);
+        ShuffleAndLoadNextScene();
+    }
+
+     void ShuffleAndLoadNextScene()
+    {
+        // Shuffle scenes
+        for (int i = 0; i < scenesToShuffle.Length; i++)
+        {
+            string temp = scenesToShuffle[i];
+            int randomIndex = Random.Range(i, scenesToShuffle.Length);
+            scenesToShuffle[i] = scenesToShuffle[randomIndex];
+            scenesToShuffle[randomIndex] = temp;
+        }
+
+        // Load next scene
+        for (int i = 0; i < scenesToShuffle.Length; i++)
+        {
+            if (scenesToShuffle[i] != SceneManager.GetActiveScene().name)
+            {
+                SceneManager.LoadScene(scenesToShuffle[i]);
+                shuffleCount++; // Increment shuffle count
+                if (shuffleCount == 2) // Check if shuffled 4 times
+                {
+                    shuffleCount = 0; // Reset shuffle count
+                    return;
+                }
+                else
+                {
+                    return; // Return after loading the next scene
+                }
+            }
+        }
+
+        // Load the menu scene if all scenes have been visited
+        SceneManager.LoadScene(0);
+    }
+
+    void IncrementScore()
+    {
+        Scoreloli++;
+    }
+
+    // Save the score using PlayerPrefs
+    void SaveScore()
+    {
+        PlayerPrefs.SetInt("Scoreloli", Scoreloli);
+    }
+
+    // Load the score from PlayerPrefs
+    void LoadScore()
+    {
+Scoreloli = PlayerPrefs.GetInt("Scoreloli", 0);
+    }
+
+    // Display the score
+    void DisplayScore()
+    {
+        if (loliText != null)
+        {
+            loliText.text = Scoreloli.ToString();
+        }
+    }
+
+    public int GetScore()
+    {
+        return Scoreloli;
+    }
+
+    public void ResetScore()
+    {
+        Scoreloli = 0;
+        correctCount = 0; // Reset correct count
+        SaveScore();
+        DisplayScore();
+    }
+
+    public void OnSelesaiButtonClick()
+    {
+        // Reset the score when the "Selesai" button is clicked
+        ResetScore();
+        SceneManager.LoadScene("MainPage 1");
+    }
+
+    public void OnStartButtonClick()
+    {
+        // Reset score and shuffle scenes when the "Start Game" button is clicked
+        ShuffleAndLoadNextScene();
+    }
+}

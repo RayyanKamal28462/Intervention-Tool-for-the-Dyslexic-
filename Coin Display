@@ -1,0 +1,14 @@
+using UnityEngine;
+using UnityEngine.UI;
+
+public class CoinDisplay : MonoBehaviour
+{
+    public Text coinsText;
+
+    void Start()
+    {
+        // Retrieve the number of coins from PlayerPrefs
+        int numberOfCoins = PlayerPrefs.GetInt("NumberOfCoins", 0);
+        coinsText.text = numberOfCoins.ToString();
+    }
+}

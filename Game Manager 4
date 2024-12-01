@@ -1,0 +1,239 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+public class GameManager5: MonoBehaviour
+{
+    [Header("Pengaturan Halaman Menu")]
+    public string Halaman_Menu;
+    public string[] Halaman_Permainan;
+    public string Halaman_Hasil;
+    private int currentSceneIndex = 0;
+
+    public static GameManager5 Instance { get; private set; }
+
+    [Header("Gameplay")]
+    public string correctWord;
+    public int bobot;
+    public string[] scenesToShuffle;
+
+    public AudioClip wrongSound;
+    public AudioClip correctSound;
+    public AudioSource sound;
+    public GameObject answerGroup;
+    public GameObject buttonGroup;
+    public GameObject buttonPrefab;
+
+    [Header("Word Options")]
+    public List<string> wordOptions = new List<string>();
+
+    [Header("Untuk Keperluan Debugging, Tidak Perlu Diisi !")]
+    public int nilai;
+
+    [Header("Pengaturan Halaman Hasil")]
+    public GameObject[] bintang;
+    public Text text_score;
+    public int batas_bintang_1;
+    public int batas_bintang_2;
+    public int batas_bintang_3;
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    void Start()
+    {
+        nilai = PlayerPrefs.GetInt("nilai");
+
+        if (SceneManager.GetActiveScene().name == Halaman_Menu)
+        {
+            for (int i = 0; i < Halaman_Permainan.Length; i++)
+            {
+                PlayerPrefs.SetString("halaman_permainan_" + i, Halaman_Permainan[i]);
+            }
+            PlayerPrefs.SetInt("total_halaman_permainan", Halaman_Permainan.Length);
+            PlayerPrefs.SetString("halaman_hasil", Halaman_Hasil);
+        }
+        else if (SceneManager.GetActiveScene().name == PlayerPrefs.GetString("halaman_hasil"))
+        {
+            PemberianBintang();
+        }
+
+        for (int i = 0; i < PlayerPrefs.GetInt("total_halaman_permainan"); i++)
+        {
+            if (SceneManager.GetActiveScene().name == PlayerPrefs.GetString("halaman_permainan_" + i))
+            {
+                if (SceneManager.GetActiveScene().name == PlayerPrefs.GetString("halaman_permainan_0"))
+                {
+                    PlayerPrefs.SetInt("nilai", 0);
+                    nilai = PlayerPrefs.GetInt("nilai");
+                    GenerateAll();
+                }
+                else
+                {
+                    GenerateAll();
+                }
+            }
+        }
+    }
+
+    public void StartGame()
+    {
+        SceneManager.LoadScene(scenesToShuffle[0]);
+    }
+
+    void GenerateAll()
+    {
+        for (int i = 0; i < wordOptions.Count; i++)
+        {
+            GenerateWordButton(wordOptions[i]);
+        }
+        RandomizeButtonPositions();
+    }
+
+    void GenerateWordButton(string word)
+    {
+        var wordButton = Instantiate(buttonPrefab, buttonGroup.transform.position, buttonGroup.transform.rotation);
+        wordButton.transform.SetParent(buttonGroup.transform);
+        wordButton.transform.GetChild(0).GetComponent<Text>().text = word.ToUpper();
+        wordButton.name = word.ToUpper();
+        wordButton.GetComponent<Button>().onClick.AddListener(delegate { WordButtonOnClick(wordButton); });
+    }
+
+    void WordButtonOnClick(GameObject btn)
+    {
+        string text = btn.transform.GetChild(0).GetComponent<Text>().text;
+        CheckUserAnswer(text);
+    }
+
+    void CheckUserAnswer(string userAnswer)
+    {
+        if (userAnswer == correctWord.ToUpper())
+        {
+            Debug.Log("Correct Answer");
+            sound.clip = correctSound;
+            sound.Play();
+            TambahNilai();
+            StartCoroutine(WaitAndLoadNextScene());
+        }
+        else
+        {
+            Debug.Log("Wrong Answer");
+            sound.clip = wrongSound;
+            sound.Play();
+            StartCoroutine(WaitAndReloadScene());
+        }
+    }
+
+    void TambahNilai()
+    {
+        nilai = nilai + bobot;
+        PlayerPrefs.SetInt("nilai", nilai);
+    }
+
+    void PemberianBintang()
+    {
+        if (nilai <= batas_bintang_1)
+        {
+            bintang[0].SetActive(true);
+            bintang[1].SetActive(false);
+            bintang[2].SetActive(false);
+        }
+        else if (nilai <= batas_bintang_2)
+        {
+            bintang[0].SetActive(true);
+            bintang[1].SetActive(true);
+            bintang[2].SetActive(false);
+        }
+        else if (nilai <= batas_bintang_3)
+        {
+            bintang[0].SetActive(true);
+            bintang[1].SetActive(true);
+            bintang[2].SetActive(true);
+        }
+
+        text_score.text = nilai.ToString(); // Display only the score
+    }
+
+    IEnumerator WaitAndLoadNextScene()
+    {
+        yield return new WaitForSeconds(1.5f);
+        LoadNextScene();
+    }
+
+    IEnumerator WaitAndReloadScene()
+    {
+        yield return new WaitForSeconds(1f);
+        ReloadScene();
+    }
+
+    void LoadNextScene()
+    {
+        if (scenesToShuffle != null && scenesToShuffle.Length > 0)
+        {
+            currentSceneIndex = (currentSceneIndex + 1) % scenesToShuffle.Length;
+            SceneManager.LoadScene(scenesToShuffle[currentSceneIndex]);
+        }
+        else
+        {
+            Debug.LogError("No scenes provided in scenesToShuffle array.");
+        }
+    }
+
+    void ReloadScene()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    void RandomizeButtonPositions()
+    {
+        List<int> indexes = new List<int>();
+        List<int> values = new List<int>();
+
+        for (int i = 0; i < wordOptions.Count; ++i)
+        {
+            indexes.Add(i);
+        }
+
+        for (int i = 0; i < wordOptions.Count; ++i)
+        {
+            int index = Random.Range(0, indexes.Count);
+            values.Add(indexes[index]);
+            indexes.RemoveAt(index);
+        }
+
+        foreach (Transform child in buttonGroup.transform)
+        {
+            int index = values[0];
+            child.SetSiblingIndex(index);
+            values.RemoveAt(0);
+        }
+    }
+
+    public void ResetScore()
+    {
+        PlayerPrefs.SetInt("nilai", 0);
+        text_score.text = nilai.ToString(); // Display only the score
+    }
+
+    public void OnSelesaiButtonClick()
+    {
+        ResetScore();
+        SceneManager.LoadScene("SubGame");
+    }
+
+    public void LoadScene(string sceneName)
+    {
+        SceneManager.LoadScene(sceneName);
+    }
+}
